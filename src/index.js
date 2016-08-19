@@ -110,8 +110,12 @@ const playerFiring = rx.Observable.merge(
 const HeroShots = rx.Observable.combineLatest(
   playerFiring,
   SpaceShip,
-  (shotEvents, spaceship) => ({ x: spaceship.x }),
+  (shotEvents, spaceship) => ({
+    x: spaceship.x,
+    timestamp: shotEvents.timestamp,
+  }),
 )
+.distinctUntilChanged(shot => shot.timestamp)
 .scan((shotArray, shot) => {
   shotArray.push({ x: shot.x, y: HERO_Y });
   return shotArray;
