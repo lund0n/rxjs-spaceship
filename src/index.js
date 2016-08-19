@@ -96,6 +96,6 @@ const Game = rx.Observable.combineLatest(
   (stars, spaceship, enemies) => ({
     stars, spaceship, enemies,
   })
-);
+).sample(SPEED);
 
 Game.subscribe(renderScene);
