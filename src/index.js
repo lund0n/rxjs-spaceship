@@ -50,10 +50,12 @@ const paintEnemies = enemies => {
   });
 };
 const SHOOTING_SPEED = 15;
+const SCORE_INCREASE = 10;
 const paintHeroShots = (heroShots, enemies) => {
   heroShots.forEach(shot => {
     enemies.forEach(enemy => {
       if (!enemy.isDead && collision(shot, enemy)) {
+        ScoreSubject.onNext(SCORE_INCREASE);
         enemy.isDead = true;
         shot.x = shot.y = -100;
       }
@@ -62,12 +64,20 @@ const paintHeroShots = (heroShots, enemies) => {
     drawTriangle(shot.x, shot.y, 5, '#ffff00', 'up');
   });
 };
+const paintScore = score => {
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText(`Score: ${score}`, 40, 43);
+};
+const ScoreSubject = new rx.BehaviorSubject(0);
+const score = ScoreSubject.scan((prev, cur) => prev + cur, 0);
 
 const renderScene = actors => {
   paintStars(actors.stars);
   paintSpaceShip(actors.spaceship.x, actors.spaceship.y);
   paintEnemies(actors.enemies);
   paintHeroShots(actors.heroShots, actors.enemies);
+  paintScore(actors.score);
 };
 
 const StarStream = rx.Observable.range(1, STAR_NUMBER)
@@ -156,8 +166,9 @@ const Game = rx.Observable.combineLatest(
   SpaceShip,
   Enemies,
   HeroShots,
-  (stars, spaceship, enemies, heroShots) => ({
-    stars, spaceship, enemies, heroShots,
+  score,
+  (stars, spaceship, enemies, heroShots, score) => ({
+    stars, spaceship, enemies, heroShots, score,
   })
 )
 .sample(SPEED)
