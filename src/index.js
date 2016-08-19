@@ -8,6 +8,9 @@ element.appendChild(canvas);
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+const getRandomInt = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1) + min);
+
 const SPEED = 40;
 const STAR_NUMBER = 250;
 const paintStars = stars => {
@@ -30,9 +33,17 @@ const drawTriangle = (x, y, width, color, direction) => {
 const paintSpaceShip = (x, y) => {
   drawTriangle(x, y, 20, '#ff0000', 'up');
 };
+const paintEnemies = enemies => {
+  enemies.forEach(enemy => {
+    enemy.y += 5;
+    enemy.x += getRandomInt(-15, 15);
+    drawTriangle(enemy.x, enemy.y, 20, '#00ff00', 'down');
+  });
+};
 const renderScene = actors => {
   paintStars(actors.stars);
   paintSpaceShip(actors.spaceship.x, actors.spaceship.y);
+  paintEnemies(actors.enemies);
 };
 
 const StarStream = rx.Observable.range(1, STAR_NUMBER)
@@ -67,11 +78,23 @@ const SpaceShip = mouseMove
     y: HERO_Y,
   });
 
+const ENEMY_FREQ = 1500;
+const Enemies = rx.Observable.interval(ENEMY_FREQ)
+  .scan(enemyArray => {
+    const enemy = {
+      x: parseInt(Math.random() * canvas.width, 10),
+      y: -30,
+    };
+    enemyArray.push(enemy);
+    return enemyArray;
+  }, []);
+
 const Game = rx.Observable.combineLatest(
   StarStream,
   SpaceShip,
-  (stars, spaceship) => ({
-    stars, spaceship,
+  Enemies,
+  (stars, spaceship, enemies) => ({
+    stars, spaceship, enemies,
   })
 );
 
