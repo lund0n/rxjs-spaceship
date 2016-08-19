@@ -38,6 +38,10 @@ const paintEnemies = enemies => {
     enemy.y += 5;
     enemy.x += getRandomInt(-15, 15);
     drawTriangle(enemy.x, enemy.y, 20, '#00ff00', 'down');
+    enemy.shots.forEach(shot => {
+      shot.y += SHOOTING_SPEED;
+      drawTriangle(shot.x, shot.y, 5, '#00ffff', 'down');
+    });
   });
 };
 const SHOOTING_SPEED = 15;
@@ -87,15 +91,24 @@ const SpaceShip = mouseMove
     y: HERO_Y,
   });
 
+const isVisible = obj =>
+  obj.x > -40 && obj.x < canvas.width + 40 &&
+  obj.y > -40 && obj.y < canvas.height + 40;
 const ENEMY_FREQ = 1500;
+const ENEMY_SHOOTING_FREQ = 750;
 const Enemies = rx.Observable.interval(ENEMY_FREQ)
   .scan(enemyArray => {
     const enemy = {
       x: parseInt(Math.random() * canvas.width, 10),
       y: -30,
+      shots: [],
     };
+    rx.Observable.interval(ENEMY_SHOOTING_FREQ).subscribe(() => {
+      enemy.shots.push({ x: enemy.x, y: enemy.y });
+      enemy.shots = enemy.shots.filter(isVisible);
+    });
     enemyArray.push(enemy);
-    return enemyArray;
+    return enemyArray.filter(isVisible);
   }, []);
 
 const playerFiring = rx.Observable.merge(
