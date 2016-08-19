@@ -10,6 +10,9 @@ canvas.height = window.innerHeight;
 
 const getRandomInt = (min, max) =>
   Math.floor(Math.random() * (max - min + 1) + min);
+const collision = (target1, target2) =>
+  (target1.x > target2.x - 20 && target1.x < target2.x + 20) &&
+  (target1.y > target2.y - 20 && target1.y < target2.y + 20);
 
 const SPEED = 40;
 const STAR_NUMBER = 250;
@@ -37,7 +40,9 @@ const paintEnemies = enemies => {
   enemies.forEach(enemy => {
     enemy.y += 5;
     enemy.x += getRandomInt(-15, 15);
-    drawTriangle(enemy.x, enemy.y, 20, '#00ff00', 'down');
+    if (!enemy.isDead) {
+      drawTriangle(enemy.x, enemy.y, 20, '#00ff00', 'down');
+    }
     enemy.shots.forEach(shot => {
       shot.y += SHOOTING_SPEED;
       drawTriangle(shot.x, shot.y, 5, '#00ffff', 'down');
@@ -45,8 +50,14 @@ const paintEnemies = enemies => {
   });
 };
 const SHOOTING_SPEED = 15;
-const paintHeroShots = heroShots => {
+const paintHeroShots = (heroShots, enemies) => {
   heroShots.forEach(shot => {
+    enemies.forEach(enemy => {
+      if (!enemy.isDead && collision(shot, enemy)) {
+        enemy.isDead = true;
+        shot.x = shot.y = -100;
+      }
+    });
     shot.y -= SHOOTING_SPEED;
     drawTriangle(shot.x, shot.y, 5, '#ffff00', 'up');
   });
@@ -56,7 +67,7 @@ const renderScene = actors => {
   paintStars(actors.stars);
   paintSpaceShip(actors.spaceship.x, actors.spaceship.y);
   paintEnemies(actors.enemies);
-  paintHeroShots(actors.heroShots);
+  paintHeroShots(actors.heroShots, actors.enemies);
 };
 
 const StarStream = rx.Observable.range(1, STAR_NUMBER)
@@ -104,11 +115,15 @@ const Enemies = rx.Observable.interval(ENEMY_FREQ)
       shots: [],
     };
     rx.Observable.interval(ENEMY_SHOOTING_FREQ).subscribe(() => {
-      enemy.shots.push({ x: enemy.x, y: enemy.y });
+      if (!enemy.isDead) {
+        enemy.shots.push({ x: enemy.x, y: enemy.y });
+      }
       enemy.shots = enemy.shots.filter(isVisible);
     });
     enemyArray.push(enemy);
-    return enemyArray.filter(isVisible);
+    return enemyArray
+      .filter(isVisible)
+      .filter(en => !(en.isDead && en.shots.length === 0));
   }, []);
 
 const playerFiring = rx.Observable.merge(
@@ -133,6 +148,9 @@ const HeroShots = rx.Observable.combineLatest(
   shotArray.push({ x: shot.x, y: HERO_Y });
   return shotArray;
 }, []);
+const gameOver = (ship, enemies) => enemies.some(enemy =>
+  collision(ship, enemy) || enemy.shots.some(shot => collision(ship, shot))
+);
 const Game = rx.Observable.combineLatest(
   StarStream,
   SpaceShip,
@@ -141,6 +159,8 @@ const Game = rx.Observable.combineLatest(
   (stars, spaceship, enemies, heroShots) => ({
     stars, spaceship, enemies, heroShots,
   })
-).sample(SPEED);
+)
+.sample(SPEED)
+.takeWhile(actors => !gameOver(actors.spaceship, actors.enemies));
 
 Game.subscribe(renderScene);
